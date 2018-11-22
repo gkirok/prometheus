@@ -1,11 +1,27 @@
 def label = "${UUID.randomUUID().toString()}"
-def V3IO_VERSION = '1.9.0'
+def V3IO_TSDB_VERSION = "v0.8.2"
 def BUILD_FOLDER = '/go'
+def github_user = "gkirok"
+def docker_user = "gallziguazio"
+
+
+
 podTemplate(label: "prometheus-${label}", inheritFrom: 'kube-slave-dood') {
     node("prometheus-${label}") {
         withCredentials([
                 usernamePassword(credentialsId: '4318b7db-a1af-4775-b871-5a35d3e75c21', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME'),
         ]) {
+            stage('get release') {
+                // sh "curl https://api.github.com/repos/gkirok/prometheus/releases/latest"
+                sh """
+                    curl -X POST -d " \\
+                     { \\
+                       \\"query\\": \\"query { viewer { login }}\\" \\
+                     } \\
+                    " https://api.github.com/graphql
+                """
+            }
+
             stage('prepare sources') {
                 sh """ 
                     cd ${BUILD_FOLDER}
@@ -20,14 +36,19 @@ podTemplate(label: "prometheus-${label}", inheritFrom: 'kube-slave-dood') {
                 """
             }
 
+            def V3IO_PROM_VERSION = sh (
+                    script: "cat ${BUILD_FOLDER}/src/github.com/prometheus/prometheus/VERSION",
+                    returnStdout: true
+            ).trim()
+
             stage('build in dood') {
                 container('docker-cmd') {
                     sh """
                         cd ${BUILD_FOLDER}/src/github.com/prometheus/prometheus
-                        docker build . -t ${docker_user}/v3io-prom:${V3IO_VERSION}-${V3IO_TSDB_VERSION} -f Dockerfile.multi
+                        docker build . -t ${docker_user}/v3io-prom:${V3IO_PROM_VERSION}-${V3IO_TSDB_VERSION} -f Dockerfile.multi
                     """
                     withDockerRegistry([ credentialsId: "472293cc-61bc-4e9f-aecb-1d8a73827fae", url: "" ]) {
-                        sh "docker push ${docker_user}/v3io-prom:${V3IO_VERSION}-${V3IO_TSDB_VERSION}"
+                        sh "docker push ${docker_user}/v3io-prom:${V3IO_PROM_VERSION}-${V3IO_TSDB_VERSION}"
                     }
                 }
             }
