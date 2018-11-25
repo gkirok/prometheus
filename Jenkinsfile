@@ -14,13 +14,12 @@ podTemplate(label: "prometheus-${label}", inheritFrom: 'kube-slave-dood') {
         ]) {
             stage('release') {
                 def TAG_VERSION = sh(
-                        script: "echo ${TAG_NAME} | tr -d '\\n' | egrep '^v[\\.0-9]*-v[\\.0-9]*\$'",
+                        script: "echo ${TAG_NAME} | tr -d '\\n' | egrep '^v.*-v[\\.0-9]*\$'",
                         returnStdout: true
                 ).trim()
                 if ( TAG_VERSION ) {
-                    print TAG_VERSION
                     def V3IO_TSDB_VERSION = sh(
-                            script: "echo ${TAG_VERSION} | awk -F '-' '{print \$2}'",
+                            script: "echo ${TAG_VERSION} | awk -F '-v' '{print \"v\"\$2}'",
                             returnStdout: true
                     ).trim()
 //                    stage('get release') {
@@ -75,6 +74,8 @@ podTemplate(label: "prometheus-${label}", inheritFrom: 'kube-slave-dood') {
                             echo "Can not push code to git"
                         }
                     }
+                } else {
+                    echo "${TAG_VERSION} is not release tag."
                 }
             }
         }
