@@ -14,12 +14,12 @@ podTemplate(label: "prometheus-${label}", inheritFrom: 'kube-slave-dood') {
         ]) {
             stage('release') {
                 def TAG_VERSION = sh(
-                        script: "echo ${TAG_NAME} | tr -d '\\n' | egrep '^v[\\.0-9]*.*-v[\\.0-9]*\$'",
+                        script: "echo ${TAG_NAME} | tr -d '\\n' | egrep '^v[\\.0-9]*.*-v[\\.0-9]*\$' | sed 's/v//'",
                         returnStdout: true
                 ).trim()
                 if ( TAG_VERSION ) {
                     def V3IO_TSDB_VERSION = sh(
-                            script: "echo ${TAG_VERSION} | awk -F '-v' '{print \"v\"\$2}'",
+                            script: "echo ${TAG_VERSION} | awk -F '-v' '{print \$2}'",
                             returnStdout: true
                     ).trim()
 //                    stage('get release') {
@@ -37,7 +37,7 @@ podTemplate(label: "prometheus-${label}", inheritFrom: 'kube-slave-dood') {
                             rm -rf vendor/github.com/v3io/v3io-tsdb/
                             git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/${github_user}/v3io-tsdb.git vendor/github.com/v3io/v3io-tsdb
                             cd vendor/github.com/v3io/v3io-tsdb
-                            git checkout ${V3IO_TSDB_VERSION}
+                            git checkout "v${V3IO_TSDB_VERSION}"
                             rm -rf .git vendor/github.com/prometheus
                         """
                     }
@@ -51,10 +51,10 @@ podTemplate(label: "prometheus-${label}", inheritFrom: 'kube-slave-dood') {
                         container('docker-cmd') {
                             sh """
                                 cd ${BUILD_FOLDER}/src/github.com/prometheus/prometheus
-                                docker build . -t ${docker_user}/v3io-prom:${TAG_VERSION/v/} -f Dockerfile.multi
+                                docker build . -t ${docker_user}/v3io-prom:${TAG_VERSION} -f Dockerfile.multi
                             """
                             withDockerRegistry([credentialsId: "472293cc-61bc-4e9f-aecb-1d8a73827fae", url: ""]) {
-                                sh "docker push ${docker_user}/v3io-prom:${TAG_VERSION/v/}"
+                                sh "docker push ${docker_user}/v3io-prom:${TAG_VERSION}"
                             }
                         }
                     }
@@ -66,7 +66,7 @@ podTemplate(label: "prometheus-${label}", inheritFrom: 'kube-slave-dood') {
                                 git config --global user.name '${GIT_USERNAME}'
                                 cd ${BUILD_FOLDER}/src/github.com/prometheus/prometheus;
                                 git add vendor/github.com/v3io/v3io-tsdb;
-                                git commit -am 'Updated TSDB to ${V3IO_TSDB_VERSION}';
+                                git commit -am 'Updated TSDB to v${V3IO_TSDB_VERSION}';
                                 git push origin master
                             """
                         } catch (err) {
