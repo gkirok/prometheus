@@ -10,7 +10,7 @@ podTemplate(label: "prometheus-${label}", inheritFrom: 'kube-slave-dood') {
     node("prometheus-${label}") {
         withCredentials([
                 usernamePassword(credentialsId: '4318b7db-a1af-4775-b871-5a35d3e75c21', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME'),
-                secretText(credentialsId: 'dd7f75c5-f055-4eb3-9365-e7d04e644211', secretText: 'GIT_TOKEN')
+//                string(credentialsId: 'dd7f75c5-f055-4eb3-9365-e7d04e644211', variable: 'GIT_TOKEN')
         ]) {
             stage('release') {
                 def TAG_VERSION = sh(
@@ -18,12 +18,13 @@ podTemplate(label: "prometheus-${label}", inheritFrom: 'kube-slave-dood') {
                         returnStdout: true
                 ).trim()
                 if ( TAG_VERSION ) {
-                    stage('get release') {
-                        // sh "curl https://api.github.com/repos/gkirok/prometheus/releases/latest"
-                        sh """
-                            curl -H "Authorization: bearer ${GIT_TOKEN}" -X POST -d '{"query": "query { repository(owner:\"gkirok\", name:\"prometheus\") { releases(last: 5) { nodes { tag { name } } } } }"' https://api.github.com/graphql
-                        """
-                    }
+                    print TAG_VERSION
+//                    stage('get release') {
+//                         sh "curl https://api.github.com/repos/gkirok/prometheus/releases/latest"
+//                        sh """
+//                            curl -H "Authorization: bearer ${GIT_TOKEN}" -X POST -d '{"query": "query { repository(owner:\"gkirok\", name:\"prometheus\") { releases(last: 5) { nodes { tag { name } } } } }"' https://api.github.com/graphql
+//                        """
+//                    }
 
                     stage('prepare sources') {
                         sh """ 
