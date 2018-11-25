@@ -10,7 +10,6 @@ endif
 
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
-GOPATH ?= $(shell go env GOPATH)
 
 TSDBCTL_BIN_NAME := tsdbctl-$(GIT_REVISION)-$(GOOS)-$(GOARCH)
 
@@ -32,7 +31,7 @@ bench: get
 
 .PHONY: build
 build: get
-	CGO_ENABLED=0 go build -v -o "$(GOPATH)/bin/$(TSDBCTL_BIN_NAME)" ./cmd/tsdbctl
+	go build -v -o "$(GOPATH)/bin/$(TSDBCTL_BIN_NAME)" ./cmd/tsdbctl
 
 .PHONY: lint
 lint:

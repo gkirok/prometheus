@@ -43,3 +43,4 @@ QueryAggregateStep: "1h"
 
 # Validate correctness of raw data
 ValidateRawData: true
+
