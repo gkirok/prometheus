@@ -37,7 +37,7 @@ parallel(
                             def NEXT_VERSION = "0.1.0"
 
                             stage ('starting tsdb-nuclio job') {
-                                build job: 'tsdb-nuclio', parameters: [[$class: 'StringParameterValue', name: 'TAG_NAME', value: "v${NEXT_VERSION}"]]
+                                build job: "tsdb-nuclio/v${NEXT_VERSION}", propagate: true, wait: true, parameters: [[$class: 'StringParameterValue', name: 'TAG_NAME', value: "v${NEXT_VERSION}"]]
                             }
 
                             stage('create tsdb-nuclio release') {
