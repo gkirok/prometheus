@@ -16,10 +16,9 @@ metadata:
     component: "agent"
 spec:
   shareProcessNamespace: true
-  replicas: 3
   containers:
     - name: jnlp
-      image: jenkinsci/jnlp-slave
+      image: jenkins/jnlp-slave
       resources:
         limits:
           cpu: 1
@@ -50,7 +49,7 @@ spec:
     node("${git_project}-${label}") {
         withCredentials([
                 usernamePassword(credentialsId: '4318b7db-a1af-4775-b871-5a35d3e75c21', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME'),
-//                string(credentialsId: 'dd7f75c5-f055-4eb3-9365-e7d04e644211', variable: 'GIT_TOKEN')
+                string(credentialsId: 'dd7f75c5-f055-4eb3-9365-e7d04e644211', variable: 'GIT_TOKEN')
         ]) {
 //            stage('release') {
                 def AUTO_TAG
