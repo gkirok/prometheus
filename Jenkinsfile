@@ -69,7 +69,7 @@ spec:
                     ).trim()
 
                     PUBLISHED_BEFORE = sh(
-                            script: "tag_published_at=\$(cat ~/tag_version | python -c 'import json,sys;obj=json.load(sys.stdin);print obj[\"published_at\"]'); SECONDS=\$(expr \$(date +%s) - \$(date -d \"\$tag_published_at\" +%s)); expr \$SECONDS / 3600",
+                            script: "tag_published_at=\$(cat ~/tag_version | python -c 'import json,sys;obj=json.load(sys.stdin);print obj[\"published_at\"]'); SECONDS=\$(expr \$(date +%s) - \$(date -d \"\$tag_published_at\" +%s)); expr \$SECONDS / 60 + 1",
                             returnStdout: true
                     ).trim()
 
@@ -79,7 +79,7 @@ spec:
                 }
             }
 
-            if ( TAG_VERSION && PUBLISHED_BEFORE < 3 ) {
+            if ( TAG_VERSION && PUBLISHED_BEFORE < 240 ) {
                 stage('prepare sources') {
                     container('jnlp') {
                         V3IO_TSDB_VERSION = sh(
@@ -135,8 +135,8 @@ spec:
                 }
             } else {
                 stage('warning') {
-                    if (PUBLISHED_BEFORE >= 3) {
-                        echo "Tag published date too old. Before $PUBLISHED_BEFORE hours."
+                    if (PUBLISHED_BEFORE >= 240) {
+                        echo "Tag too old, published before $PUBLISHED_BEFORE minutes."
                     } else if (AUTO_TAG.startsWith("Autorelease")) {
                         echo "Autorelease does not trigger this job."
                     } else {
