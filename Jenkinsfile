@@ -1,8 +1,15 @@
-def label = "${UUID.randomUUID().toString()}"
-def BUILD_FOLDER = "/go"
-def github_user = "gkirok"
-def docker_user = "gallziguazio"
-def git_project = "prometheus"
+label = "${UUID.randomUUID().toString()}"
+BUILD_FOLDER = "/go"
+quay_user = "gkirok"
+quay_credentials = "iguazio-dev-quay-credentials"
+docker_user = "gallziguazio"
+docker_credentials = "iguazio-dev-docker-credentials"
+artifactory_user = "gallz"
+artifactory_credentials = "iguazio-dev-artifactory-credentials"
+git_project = "prometheus"
+git_project_user = "v3io"
+git_deploy_user = "iguazio-dev-git-user"
+git_deploy_user_token = "iguazio-dev-git-user-token"
 
 properties([pipelineTriggers([[$class: 'PeriodicFolderTrigger', interval: '2m']])])
 podTemplate(label: "${git_project}-${label}", yaml: """
@@ -47,12 +54,9 @@ spec:
 """
 ) {
     node("${git_project}-${label}") {
-//        currentBuild.displayName = "${git_project}"
-//        currentBuild.description = "Will not run with tags created before 4 hours and more."
-
         withCredentials([
-                usernamePassword(credentialsId: '4318b7db-a1af-4775-b871-5a35d3e75c21', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME'),
-                string(credentialsId: 'dd7f75c5-f055-4eb3-9365-e7d04e644211', variable: 'GIT_TOKEN')
+                usernamePassword(credentialsId: git_deploy_user, passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME'),
+                string(credentialsId: git_deploy_user_token, variable: 'GIT_TOKEN')
         ]) {
             def AUTO_TAG
             def TAG_VERSION
@@ -65,7 +69,7 @@ spec:
                             returnStdout: true
                     ).trim()
 
-                    sh "curl -v -H \"Authorization: token ${GIT_TOKEN}\" https://api.github.com/repos/gkirok/${git_project}/releases/tags/v${TAG_VERSION} > ~/tag_version"
+                    sh "curl -v -H \"Authorization: token ${GIT_TOKEN}\" https://api.github.com/repos/${git_project_user}/${git_project}/releases/tags/v${TAG_VERSION} > ~/tag_version"
 
                     AUTO_TAG = sh(
                             script: "cat ~/tag_version | python -c 'import json,sys;obj=json.load(sys.stdin);print obj[\"body\"]'",
@@ -75,7 +79,7 @@ spec:
                     PUBLISHED_BEFORE = sh(
                             script: "tag_published_at=\$(cat ~/tag_version | python -c 'import json,sys;obj=json.load(sys.stdin);print obj[\"published_at\"]'); SECONDS=\$(expr \$(date +%s) - \$(date -d \"\$tag_published_at\" +%s)); expr \$SECONDS / 60 + 1",
                             returnStdout: true
-                    ).trim()
+                    ).trim().toInteger()
 
                     echo "$AUTO_TAG"
                     echo "$TAG_VERSION"
@@ -83,7 +87,7 @@ spec:
                 }
             }
 
-            if ( TAG_VERSION && PUBLISHED_BEFORE < 240 ) {
+            if ( TAG_VERSION != null && TAG_VERSION.length() > 0 && PUBLISHED_BEFORE < 240 ) {
                 stage('prepare sources') {
                     container('jnlp') {
                         V3IO_TSDB_VERSION = sh(
@@ -93,10 +97,10 @@ spec:
 
                         sh """ 
                             cd ${BUILD_FOLDER}
-                            git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/${github_user}/${git_project}.git src/github.com/${git_project}/${git_project}
+                            git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/${git_project_user}/${git_project}.git src/github.com/${git_project}/${git_project}
                             cd ${BUILD_FOLDER}/src/github.com/${git_project}/${git_project}
                             rm -rf vendor/github.com/v3io/v3io-tsdb/
-                            git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/${github_user}/v3io-tsdb.git vendor/github.com/v3io/v3io-tsdb
+                            git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/${git_project_user}/v3io-tsdb.git vendor/github.com/v3io/v3io-tsdb
                             cd vendor/github.com/v3io/v3io-tsdb
                             git checkout "v${V3IO_TSDB_VERSION}"
                             rm -rf .git vendor/github.com/${git_project}
@@ -104,38 +108,33 @@ spec:
                     }
                 }
 
-//                    def V3IO_PROM_VERSION = sh(
-//                            script: "cat ${BUILD_FOLDER}/src/github.com/${git_project}/${git_project}/VERSION",
-//                            returnStdout: true
-//                    ).trim()
-
-                stage('build in dood') {
+                stage('build prometheus in dood') {
                     container('docker-cmd') {
                         sh """
                             cd ${BUILD_FOLDER}/src/github.com/${git_project}/${git_project}
-                            docker build . -t ${docker_user}/v3io-prom:${TAG_VERSION} -f Dockerfile.multi
+                            docker build . -f Dockerfile.multi --tag ${docker_user}/v3io-prom:${TAG_VERSION} --tag ${quay_user}/v3io-prom:${TAG_VERSION} --tag quay.io/${quay_user}/v3io-prom:${TAG_VERSION}
                         """
-                        withDockerRegistry([credentialsId: "472293cc-61bc-4e9f-aecb-1d8a73827fae", url: ""]) {
-                            sh "docker push ${docker_user}/v3io-prom:${TAG_VERSION}"
+                    }
+                }
+
+                stage('push to hub') {
+                    container('docker-cmd') {
+                        withDockerRegistry([credentialsId: docker_credentials, url: "https://index.docker.io/v1/"]) {
+                            sh "docker push docker.io/${docker_user}/v3io-prom:${TAG_VERSION}"
                         }
                     }
                 }
 
-                stage('git push') {
-                    container('jnlp') {
-                        try {
-                            sh """
-                                git config --global user.email '${GIT_USERNAME}@iguazio.com'
-                                git config --global user.name '${GIT_USERNAME}'
-                                cd ${BUILD_FOLDER}/src/github.com/${git_project}/${git_project};
-                                git add vendor/github.com/v3io/v3io-tsdb;
-                                git commit -am 'Updated TSDB to v${V3IO_TSDB_VERSION}';
-                                git push origin master
-                            """
-                        } catch (err) {
-                            echo "Can not push code to git"
+                stage('push to quay') {
+                    container('docker-cmd') {
+                        withDockerRegistry([credentialsId: quay_credentials, url: "https://quay.io/api/v1/"]) {
+                            sh "docker push quay.io/${quay_user}/v3io-prom:${TAG_VERSION}"
                         }
                     }
+                }
+
+                stage('update release status') {
+                    sh "release_id=\$(curl -H \"Content-Type: application/json\" -H \"Authorization: token ${GIT_TOKEN}\" -X GET https://api.github.com/repos/${git_project_user}/${git_project}/releases/tags/v${TAG_VERSION} | python -c 'import json,sys;obj=json.load(sys.stdin);print obj[\"id\"]'); curl -v -H \"Content-Type: application/json\" -H \"Authorization: token ${GIT_TOKEN}\" -X PATCH https://api.github.com/repos/${git_project_user}/${git_project}/releases/\${release_id} -d '{\"prerelease\": false}'"
                 }
             } else {
                 stage('warning') {
