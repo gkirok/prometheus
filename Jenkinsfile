@@ -5,6 +5,7 @@ quay_credentials = "iguazio-dev-quay-credentials"
 docker_user = "gallziguazio"
 docker_credentials = "iguazio-dev-docker-credentials"
 artifactory_user = "gallz"
+artifactory_url = "iguazio-dev-artifactory-url"
 artifactory_credentials = "iguazio-dev-artifactory-credentials"
 git_project = "prometheus"
 git_project_user = "gkirok"
@@ -56,7 +57,8 @@ spec:
     node("${git_project}-${label}") {
         withCredentials([
                 usernamePassword(credentialsId: git_deploy_user, passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME'),
-                string(credentialsId: git_deploy_user_token, variable: 'GIT_TOKEN')
+                string(credentialsId: git_deploy_user_token, variable: 'GIT_TOKEN'),
+                string(credentialsId: artifactory_url, variable: 'ARTIFACTORY_URL')
         ]) {
             def AUTO_TAG
             def TAG_VERSION
@@ -112,7 +114,7 @@ spec:
                     container('docker-cmd') {
                         sh """
                             cd ${BUILD_FOLDER}/src/github.com/${git_project}/${git_project}
-                            docker build . -f Dockerfile.multi --tag ${docker_user}/v3io-prom:${TAG_VERSION} --tag ${quay_user}/v3io-prom:${TAG_VERSION} --tag quay.io/${quay_user}/v3io-prom:${TAG_VERSION}
+                            docker build . -f Dockerfile.multi --tag ${docker_user}/v3io-prom:${TAG_VERSION} --tag ${docker_user}/v3io-prom:latest --tag ${quay_user}/v3io-prom:${TAG_VERSION} --tag quay.io/${quay_user}/v3io-prom:latest --tag ${ARTIFACTORY_URL}/${artifactory_user}/v3io-prom:${TAG_VERSION} --tag ${ARTIFACTORY_URL}/${artifactory_user}/v3io-prom:latest
                         """
                     }
                 }
@@ -121,6 +123,7 @@ spec:
                     container('docker-cmd') {
                         withDockerRegistry([credentialsId: docker_credentials, url: "https://index.docker.io/v1/"]) {
                             sh "docker push docker.io/${docker_user}/v3io-prom:${TAG_VERSION}"
+                            sh "docker push docker.io/${docker_user}/v3io-prom:latest"
                         }
                     }
                 }
@@ -129,6 +132,16 @@ spec:
                     container('docker-cmd') {
                         withDockerRegistry([credentialsId: quay_credentials, url: "https://quay.io/api/v1/"]) {
                             sh "docker push quay.io/${quay_user}/v3io-prom:${TAG_VERSION}"
+                            sh "docker push quay.io/${quay_user}/v3io-prom:latest"
+                        }
+                    }
+                }
+
+                stage('push to artifactory') {
+                    container('docker-cmd') {
+                        withDockerRegistry([credentialsId: artifactory_credentials, url: "https://${ARTIFACTORY_URL}/api/v1/"]) {
+                            sh "docker push ${ARTIFACTORY_URL}/${artifactory_user}/v3io-prom:${TAG_VERSION}"
+                            sh "docker push ${ARTIFACTORY_URL}/${artifactory_user}/v3io-prom:latest"
                         }
                     }
                 }
