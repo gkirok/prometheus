@@ -97,7 +97,7 @@ spec:
 
                 stage('build ${git_project} in dood') {
                     container('docker-cmd') {
-                        dir("${BUILD_FOLDER}/src/github.com/v3io/${git_project}/${git_project}") {
+                        dir("${BUILD_FOLDER}/src/github.com/${git_project}/${git_project}") {
                             sh("docker build . -f Dockerfile.multi --tag v3io-prom:${TAG_VERSION}")
                         }
                     }
