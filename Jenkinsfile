@@ -90,7 +90,7 @@ spec:
                         dir("${BUILD_FOLDER}/src/github.com/${git_project}/${git_project}/vendor/github.com/v3io/v3io-tsdb") {
                             git(changelog: false, credentialsId: git_deploy_user_private_key, poll: false, url: "git@github.com:${git_project_user}/v3io-tsdb.git")
                             sh("git checkout v${V3IO_TSDB_VERSION}")
-                            sh("vendor/github.com/${git_project}")
+                            sh("rm -rf vendor/github.com/${git_project}")
                         }
                     }
                 }
