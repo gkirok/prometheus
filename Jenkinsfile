@@ -64,7 +64,7 @@ spec:
                     container('jnlp') {
                         TAG_VERSION = github.get_tag_version(TAG_NAME, '^v[\\.0-9]*.*-v[\\.0-9]*\$')
                         DOCKER_TAG_VERSION = github.get_docker_tag_version(TAG_NAME, '^v[\\.0-9]*.*-v[\\.0-9]*\$')
-                        PUBLISHED_BEFORE = github.get_tag_published_before(git_project, git_project_user, "v${TAG_VERSION}", GIT_TOKEN)
+                        PUBLISHED_BEFORE = github.get_tag_published_before(git_project, git_project_user, "${TAG_VERSION}", GIT_TOKEN)
 
                         echo "$TAG_VERSION"
                         echo "$PUBLISHED_BEFORE"
